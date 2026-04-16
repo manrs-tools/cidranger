@@ -11,7 +11,7 @@ import (
 	"net"
 )
 
-// IPVersion is version of IP address.
+// IPVersion is the version of IP address.
 type IPVersion string
 
 // Helper constants.
@@ -30,18 +30,18 @@ const (
 var ErrInvalidBitPosition = fmt.Errorf("bit position not valid")
 
 // ErrVersionMismatch is returned upon mismatch in network input versions.
-var ErrVersionMismatch = fmt.Errorf("Network input version mismatch")
+var ErrVersionMismatch = fmt.Errorf("network input version mismatch")
 
 // ErrNoGreatestCommonBit is an error returned when no greatest common bit
 // exists for the cidr ranges.
-var ErrNoGreatestCommonBit = fmt.Errorf("No greatest common bit")
+var ErrNoGreatestCommonBit = fmt.Errorf("no greatest common bit")
 
 // NetworkNumber represents an IP address using uint32 as internal storage.
 // IPv4 usings 1 uint32, while IPv6 uses 4 uint32.
 type NetworkNumber []uint32
 
-// NewNetworkNumber returns a equivalent NetworkNumber to given IP address,
-// return nil if ip is neither IPv4 nor IPv6.
+// NewNetworkNumber returns an equivalent NetworkNumber to the given IP address,
+// Returns nil if ip is neither IPv4 nor IPv6.
 func NewNetworkNumber(ip net.IP) NetworkNumber {
 	if ip == nil {
 		return nil
@@ -82,7 +82,7 @@ func (n NetworkNumber) ToV6() NetworkNumber {
 // ToIP returns equivalent net.IP.
 func (n NetworkNumber) ToIP() net.IP {
 	ip := make(net.IP, len(n)*BytePerUint32)
-	for i := 0; i < len(n); i++ {
+	for i := range n {
 		idx := i * net.IPv4len
 		binary.BigEndian.PutUint32(ip[idx:idx+net.IPv4len], n[i])
 	}
@@ -132,8 +132,8 @@ func (n NetworkNumber) Previous() NetworkNumber {
 	return newIP
 }
 
-// Bit returns uint32 representing the bit value at given position, e.g.,
-// "128.0.0.0" has bit value of 1 at position 31, and 0 for positions 30 to 0.
+// Bit returns a uint32 representing the bit value at a given position, e.g.,
+// "128.0.0.0" has a bit value of 1 at position 31, and 0 for positions 30 to 0.
 func (n NetworkNumber) Bit(position uint) (uint32, error) {
 	if int(position) > len(n)*BitsPerUint32-1 {
 		return 0, ErrInvalidBitPosition
@@ -144,16 +144,12 @@ func (n NetworkNumber) Bit(position uint) (uint32, error) {
 	return (n[idx] >> rShift) & 1, nil
 }
 
-// LeastCommonBitPosition returns the smallest position of the preceding common
-// bits of the 2 network numbers, and returns an error ErrNoGreatestCommonBit
-// if the two network number diverges from the first bit.
-// e.g., if the network number diverges after the 1st bit, it returns 131 for
-// IPv6 and 31 for IPv4 .
+// LeastCommonBitPosition returns the smallest differing bit position between two NetworkNumbers or an error if invalid.
 func (n NetworkNumber) LeastCommonBitPosition(n1 NetworkNumber) (uint, error) {
 	if len(n) != len(n1) {
 		return 0, ErrVersionMismatch
 	}
-	for i := 0; i < len(n); i++ {
+	for i := range n {
 		mask := uint32(1) << 31
 		pos := uint(31)
 		for ; mask > 0; mask >>= 1 {
@@ -176,9 +172,9 @@ type Network struct {
 	Mask   NetworkNumberMask
 }
 
-// Is p all zeros?
+// isZeros checks if all bytes in the given net.IP are zero and returns true if they are, false otherwise.
 func isZeros(p net.IP) bool {
-	for i := 0; i < len(p); i++ {
+	for i := range p {
 		if p[i] != 0 {
 			return false
 		}
@@ -186,9 +182,8 @@ func isZeros(p net.IP) bool {
 	return true
 }
 
-// NewNetwork returns Network built using given net.IPNet.
+// NewNetwork creates a new Network instance from the provided net.IPNet, adjusting the mask for IPv4-mapped addresses.
 func NewNetwork(ipNet net.IPNet) Network {
-
 	if len(ipNet.IP) == net.IPv6len && isZeros(ipNet.IP[0:10]) && ipNet.IP[10] == 0xff && ipNet.IP[11] == 0xff {
 		ipNet.Mask = ipNet.Mask[12:]
 	}
@@ -200,7 +195,8 @@ func NewNetwork(ipNet net.IPNet) Network {
 	}
 }
 
-// Masked returns a new network conforming to new mask.
+// Masked applies a CIDR mask with the specified number of leading ones to the Network and returns the resulting
+// Network.
 func (n Network) Masked(ones int) Network {
 	mask := net.CIDRMask(ones, len(n.Number)*BitsPerUint32)
 	return NewNetwork(net.IPNet{
@@ -209,8 +205,7 @@ func (n Network) Masked(ones int) Network {
 	})
 }
 
-// Contains returns true if NetworkNumber is in range of Network, false
-// otherwise.
+// Contains checks whether the given NetworkNumber lies within the range defined by the Network.
 func (n Network) Contains(nn NetworkNumber) bool {
 	if len(n.Mask) != len(nn) {
 		return false
@@ -224,7 +219,7 @@ func (n Network) Contains(nn NetworkNumber) bool {
 	return true
 }
 
-// Contains returns true if Network covers o, false otherwise
+// Covers checks whether the current network fully encompasses the given network, validating both range and mask size.
 func (n Network) Covers(o Network) bool {
 	if len(n.Number) != len(o.Number) {
 		return false
@@ -234,9 +229,8 @@ func (n Network) Covers(o Network) bool {
 	return n.Contains(o.Number) && nMaskSize <= oMaskSize
 }
 
-// LeastCommonBitPosition returns the smallest position of the preceding common
-// bits of the 2 networks, and returns an error ErrNoGreatestCommonBit
-// if the two network number diverges from the first bit.
+// LeastCommonBitPosition calculates the least common differing bit position between two Networks considering their
+// masks.
 func (n Network) LeastCommonBitPosition(n1 Network) (uint, error) {
 	maskSize, _ := n.IPNet.Mask.Size()
 	if maskSize1, _ := n1.IPNet.Mask.Size(); maskSize1 < maskSize {
@@ -262,7 +256,7 @@ func (n Network) String() string {
 // NetworkNumberMask is an IP address.
 type NetworkNumberMask NetworkNumber
 
-// Mask returns a new masked NetworkNumber from given NetworkNumber.
+// Mask returns a new masked NetworkNumber from a given NetworkNumber.
 func (m NetworkNumberMask) Mask(n NetworkNumber) (NetworkNumber, error) {
 	if len(m) != len(n) {
 		return nil, ErrVersionMismatch

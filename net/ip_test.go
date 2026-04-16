@@ -440,9 +440,9 @@ func TestPreviousIP(t *testing.T) {
 }
 
 /*
- *********************************
- Benchmarking ip manipulations.
- *********************************
+*********************************
+Benchmarking ip manipulations.
+*********************************
 */
 func BenchmarkNetworkNumberBitIPv4(b *testing.B) {
 	benchmarkNetworkNumberBit(b, "52.95.110.1", 6)

@@ -3,7 +3,7 @@ package cidranger
 import (
 	"net"
 
-	rnet "github.com/yl2chen/cidranger/net"
+	rnet "github.com/ldkingvivi/cidranger/net"
 )
 
 type rangerFactory func(rnet.IPVersion) Ranger
@@ -20,6 +20,7 @@ func newVersionedRanger(factory rangerFactory) Ranger {
 	}
 }
 
+// Insert adds the provided RangerEntry into the IPv4 or IPv6 prefix trie based on the type of IP in the given entry.
 func (v *versionedRanger) Insert(entry RangerEntry) error {
 	network := entry.Network()
 	ranger, err := v.getRangerForIP(network.IP)
@@ -29,7 +30,7 @@ func (v *versionedRanger) Insert(entry RangerEntry) error {
 	return ranger.Insert(entry)
 }
 
-// MergeInsert inserts a RangerEntry into prefix trie, and apply merge if possible
+// MergeInsert inserts a RangerEntry into the prefix trie and applies merge if possible.
 func (v *versionedRanger) MergeInsert(entry RangerEntry) error {
 	network := entry.Network()
 	ranger, err := v.getRangerForIP(network.IP)
@@ -71,23 +72,24 @@ func (v *versionedRanger) CoveredNetworks(network net.IPNet) ([]RangerEntry, err
 	return ranger.CoveredNetworks(network)
 }
 
-// Len returns number of networks in ranger.
+// Len returns the number of networks in the ranger.
 func (v *versionedRanger) Len() int {
 	return v.ipV4Ranger.Len() + v.ipV6Ranger.Len()
 }
 
-// RecalculateLen returns number of networks in ranger.
+// RecalculateLen returns the number of networks in the ranger.
 func (v *versionedRanger) RecalculateLen() int {
 	return v.ipV4Ranger.RecalculateLen() + v.ipV6Ranger.RecalculateLen()
 }
 
-// GetPrefixLayout returns prefix layout for the underlying v4 and v6 ranger
+// GetPrefixLayout returns the prefix layout for the underlying v4 and v6 ranger.
 func (v *versionedRanger) GetPrefixLayout() (map[int]int, map[int]int) {
 	v4, _ := v.ipV4Ranger.GetPrefixLayout()
 	v6, _ := v.ipV6Ranger.GetPrefixLayout()
 	return v4, v6
 }
 
+// getRangerForIP determines whether to return the IPv4 or IPv6 ranger based on the provided IP address type.
 func (v *versionedRanger) getRangerForIP(ip net.IP) (Ranger, error) {
 	if ip.To4() != nil {
 		return v.ipV4Ranger, nil

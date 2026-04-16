@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	rnet "github.com/ldkingvivi/cidranger/net"
 	"github.com/stretchr/testify/assert"
-	rnet "github.com/yl2chen/cidranger/net"
 )
 
 func getAllByVersion(version rnet.IPVersion) *net.IPNet {
@@ -601,11 +601,11 @@ func TestTrieMemUsage(t *testing.T) {
 	trie := newPrefixTree(rnet.IPv4)
 
 	var baseLineHeap, totalHeapAllocOverRuns uint64
-	for i := 0; i < runs; i++ {
+	for i := range runs {
 		t.Logf("Executing Run %d of %d", i+1, runs)
 
 		// Insert networks.
-		for n := 0; n < numIPs; n++ {
+		for range numIPs {
 			trie.Insert(NewBasicRangerEntry(GenLeafIPNet(GenIPV4())))
 		}
 		t.Logf("Inserted All (%d networks)", trie.Len())
@@ -619,7 +619,7 @@ func TestTrieMemUsage(t *testing.T) {
 		// Remove networks.
 		_, all, _ := net.ParseCIDR("0.0.0.0/0")
 		ll, _ := trie.CoveredNetworks(*all)
-		for i := 0; i < len(ll); i++ {
+		for i := range ll {
 			trie.Remove(ll[i].Network())
 		}
 		t.Logf("Removed All (%d networks)", len(ll))

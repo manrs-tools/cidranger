@@ -2,7 +2,6 @@ package cidranger
 
 import (
 	"encoding/json"
-	iptrie "github.com/yl2chen/cidranger/iptire"
 	"io/ioutil"
 	"math/rand"
 	"net"
@@ -10,8 +9,10 @@ import (
 	"testing"
 	"time"
 
+	iptrie "github.com/ldkingvivi/cidranger/iptire"
+
+	rnet "github.com/ldkingvivi/cidranger/net"
 	"github.com/stretchr/testify/assert"
-	rnet "github.com/yl2chen/cidranger/net"
 	"go4.org/netipx"
 )
 
@@ -61,7 +62,7 @@ func testContainsAgainstBase(t *testing.T, iterations int, ipGen ipGenerator) {
 	configureRangerWithAWSRanges(t, baseRanger)
 	configureTrieWithAWSRanges(t, trie)
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		nn := ipGen()
 		expected, err := baseRanger.Contains(nn.ToIP())
 		assert.NoError(t, err)
@@ -105,7 +106,7 @@ func testContainingNetworksAgainstBase(t *testing.T, iterations int, ipGen ipGen
 	configureRangerWithAWSRanges(t, baseRanger)
 	configureTrieWithAWSRanges(t, trie)
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		nn := ipGen()
 		expected, err := baseRanger.ContainingNetworks(nn.ToIP())
 		assert.NoError(t, err)
@@ -163,7 +164,7 @@ func testCoversNetworksAgainstBase(t *testing.T, iterations int, netGen networkG
 	configureRangerWithAWSRanges(t, baseRanger)
 	configureTrieWithAWSRanges(t, trie)
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		network := netGen()
 		expected, err := baseRanger.CoveredNetworks(network.IPNet)
 		assert.NoError(t, err)

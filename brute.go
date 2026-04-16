@@ -3,15 +3,15 @@ package cidranger
 import (
 	"net"
 
-	rnet "github.com/yl2chen/cidranger/net"
+	rnet "github.com/ldkingvivi/cidranger/net"
 )
 
 // bruteRanger is a brute force implementation of Ranger.  Insertion and
 // deletion of networks is performed on an internal storage in the form of
 // map[string]net.IPNet (constant time operations).  However, inclusion tests are
 // always performed linearly at no guaranteed traversal order of recorded networks,
-// so one can assume a worst case performance of O(N).  The performance can be
-// boosted many ways, e.g. changing usage of net.IPNet.Contains() to using masked
+// so one can assume the worst case performance of O(N).  The performance can be
+// boosted many ways, e.g., changing usage of net.IPNet.Contains() to using masked
 // bits equality checking, but the main purpose of this implementation is for
 // testing because the correctness of this implementation can be easily guaranteed,
 // and used as the ground truth when running a wider range of 'random' tests on
@@ -113,21 +113,23 @@ func (b *bruteRanger) CoveredNetworks(network net.IPNet) ([]RangerEntry, error) 
 	return results, nil
 }
 
-// Len returns number of networks in ranger.
+// Len returns the number of networks in ranger.
 func (b *bruteRanger) Len() int {
 	return len(b.ipV4Entries) + len(b.ipV6Entries)
 }
 
-// same as Len
+// RecalculateLen is the same as Len.
 func (b *bruteRanger) RecalculateLen() int {
 	return len(b.ipV4Entries) + len(b.ipV6Entries)
 }
 
-// GetPrefixLayout not implement in bruteRanger
+// GetPrefixLayout is not implemented in bruteRanger.
 func (b *bruteRanger) GetPrefixLayout() (map[int]int, map[int]int) {
 	return nil, nil
 }
 
+// getEntriesByVersion retrieves the appropriate map of RangerEntry objects for the given IP address (IPv4 or IPv6).
+// Returns an error if the IP address is invalid.
 func (b *bruteRanger) getEntriesByVersion(ip net.IP) (map[string]RangerEntry, error) {
 	if ip.To4() != nil {
 		return b.ipV4Entries, nil

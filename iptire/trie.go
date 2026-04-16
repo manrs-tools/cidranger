@@ -1,12 +1,12 @@
-// Package iptrie is a fork of github.com/yl2chen/cidranger. This fork massively strips down and refactors the code for
+// Package iptrie is a fork of github.com/ldkingvivi/cidranger. This fork massively strips down and refactors the code for
 // increased performance, resulting in 20x faster load time, and 1.5x faster lookups.
 
-// most code is from https://gist.github.com/phemmer/6231b12d5207ea93a1690ddc44a2c811
-// several modification as following:
-// 1. add a Contains interface to match original contains interface
-// 2. fix Find to return most specific entry instead of first match entry
-// 3. ContainingNetworks and CoveredNetworks will return entries instead of purely networks, I believe this is the whole point of this lib
-// 4. as we start return entries, now whole code base to use generic, so we don't need to pay tax in runtime as type assertion
+// Most code is from https://gist.github.com/phemmer/6231b12d5207ea93a1690ddc44a2c811
+// Several modification have been made:
+// 1. Add a Contains interface to match the original Contains interface
+// 2. Fix Find to return the most specific entry instead of the first match entry
+// 3. ContainingNetworks and CoveredNetworks will return entries instead of networks, I believe this is the whole point of this lib
+// 4. Refactor codebase to use generics on return types, eliminating runtime type assertions
 
 package iptrie
 
@@ -22,11 +22,11 @@ import (
 // at https://vincent.bernat.im/en/blog/2017-ipv4-route-lookup-linux
 //
 // CIDR blocks are stored using a prefix tree structure where each node has its
-// parent as prefix, and the path from the root node represents current CIDR
+// parent AS prefix, and the path from the root node represents the current CIDR
 // block.
 //
 // Path compression compresses a string of node with only 1 child into a single
-// node, decrease the amount of lookups necessary during containment tests.
+// node, which decreases the amount of lookups necessary during containment tests.
 type Trie[T any] struct {
 	parent   *Trie[T]
 	children [2]*Trie[T]
@@ -78,14 +78,14 @@ func (p *Trie[T]) Contains(ip netip.Addr) bool {
 }
 
 // ContainingNetworks returns the list of RangerEntry(s) the given ip is
-// contained in in ascending prefix order.
+// contained in ascending prefix order.
 func (p *Trie[T]) ContainingNetworks(ip netip.Addr) []*Entry[T] {
 	ip = normalizeAddr(ip)
 	return p.containingNetworks(ip)
 }
 
-// CoveredNetworks returns the list of RangerEntry(s) the given ipnet
-// covers.  That is, the networks that are completely subsumed by the
+// CoveredNetworks returns the list of RangerEntry(s) the given IPNet
+// covers. That is, the networks that are completely subsumed by the
 // specified network.
 func (p *Trie[T]) CoveredNetworks(network netip.Prefix) []*Entry[T] {
 	network = normalizePrefix(network)
@@ -255,7 +255,7 @@ func (p *Trie[T]) insert(network netip.Prefix, value *T) *Trie[T] {
 		var x *T = nil
 		pathPrefix := newSubTree(netdiv, x)
 		p.insertPrefix(bit, pathPrefix, existingChild)
-		// Update new child
+		// Update new child.
 		existingChild = pathPrefix
 	}
 	return existingChild.insert(network, value)
@@ -297,10 +297,10 @@ func (p *Trie[T]) remove(network netip.Prefix) *T {
 }
 
 func (p *Trie[T]) qualifiesForPathCompression() bool {
-	// Current prefix trie can be path compressed if it meets all following.
-	//		1. records no CIDR entry
-	//		2. has single or no child
-	//		3. is not root trie
+	// The current prefix trie can be path compressed if it meets all the following:
+	//		1. Records no CIDR entry
+	//		2. Has single or no child
+	//		3. Is not root trie
 	return p.value == nil && p.childrenCount() <= 1 && p.parent != nil
 }
 
@@ -319,14 +319,14 @@ func (p *Trie[T]) compressPathIfPossible() {
 		}
 	}
 
-	// Find root of currnt single child lineage.
+	// Find the root of the current single child lineage.
 	parent := p.parent
 	for ; parent.qualifiesForPathCompression(); parent = parent.parent {
 	}
 	parentBit := parent.discriminatorBitFromIP(p.network.Addr())
 	parent.children[parentBit] = loneChild
 
-	// Attempts to furthur apply path compression at current lineage parent, in case current lineage
+	// Attempts to further apply path compression at current lineage parent, in case current lineage
 	// compressed into parent.
 	parent.compressPathIfPossible()
 }

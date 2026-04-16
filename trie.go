@@ -5,7 +5,7 @@ import (
 	"net"
 	"strings"
 
-	rnet "github.com/yl2chen/cidranger/net"
+	rnet "github.com/ldkingvivi/cidranger/net"
 )
 
 // prefixTrie is a path-compressed (PC) trie implementation of the
@@ -29,7 +29,7 @@ import (
 // is outlined in the prior linked blog, and will be experimented with in more
 // depth in this project in the future.
 //
-// Note: Can not insert both IPv4 and IPv6 network addresses into the same
+// Note: Cannot insert both IPv4 and IPv6 network addresses into the same
 // prefix trie, use versionedRanger wrapper instead.
 //
 // TODO: Implement level-compressed component of the LPC trie.
@@ -87,14 +87,14 @@ func (p *prefixTrie) Insert(entry RangerEntry) error {
 	return err
 }
 
-// MergeInsert inserts a RangerEntry into prefix trie, and apply merge if possible
+// MergeInsert inserts a RangerEntry into prefix trie, and applies merge if possible
 func (p *prefixTrie) MergeInsert(entry RangerEntry) error {
 	network := rnet.NewNetwork(entry.Network())
 	_, err := p.mergeInsert(network.Number, network, entry)
 	return err
 }
 
-// Remove removes RangerEntry identified by given network from trie.
+// Remove removes RangerEntry identified by a given network from trie.
 func (p *prefixTrie) Remove(network net.IPNet) (RangerEntry, error) {
 	entry, err := p.remove(rnet.NewNetwork(network))
 	if entry != nil {
@@ -103,7 +103,7 @@ func (p *prefixTrie) Remove(network net.IPNet) (RangerEntry, error) {
 	return entry, err
 }
 
-// Contains returns boolean indicating whether given ip is contained in any
+// Contains returns boolean indicating whether a given ip is contained in any
 // of the inserted networks.
 func (p *prefixTrie) Contains(ip net.IP) (bool, error) {
 	nn := rnet.NewNetworkNumber(ip)
@@ -141,7 +141,7 @@ func (p *prefixTrie) RecalculateLen() int {
 	return p.recalculateLen()
 }
 
-// GetPrefixLayout returns prefix layout in ranger
+// GetPrefixLayout returns the prefix layout in ranger
 func (p *prefixTrie) GetPrefixLayout() (map[int]int, map[int]int) {
 	layout := make(map[int]int)
 	p.getPrefixLayout(layout)
@@ -186,7 +186,7 @@ func (p *prefixTrie) contains(number rnet.NetworkNumber) (bool, error) {
 }
 
 func (p *prefixTrie) containingNetworks(number rnet.NetworkNumber) ([]RangerEntry, error) {
-	results := []RangerEntry{}
+	var results []RangerEntry
 	if !p.network.Contains(number) {
 		return results, nil
 	}
@@ -265,27 +265,28 @@ func (p *prefixTrie) insert(network rnet.Network, entry RangerEntry) (bool, erro
 		if err != nil {
 			return false, err
 		}
-		// Update new child
+		// Update new child.
 		existingChild = pathPrefix
 	}
 	return existingChild.insert(network, entry)
 }
 
+// mergeInsert attempts to insert a network and its associated entry into the trie, merging nodes if possible.
+// Returns a boolean indicating whether a merge occurred and an error if one occurred during processing.
 func (p *prefixTrie) mergeInsert(number rnet.NetworkNumber, network rnet.Network, entry RangerEntry) (bool, error) {
-
 	if p.network.Equal(network) {
 		p.entry = entry
 		if p.childrenCount() > 0 {
-			// has child, which can be merged
+			// Has children, which can be merged.
 			p.children = p.children[:0]
 			return true, nil
 		}
-		// no child, no merge
+		// No children, no need to merge.
 		return false, nil
 	}
 
 	if p.hasEntry() && p.network.Contains(number) {
-		// p contains network already, no need to insert
+		// p contains a network already, no need to insert.
 		return false, nil
 	}
 
@@ -295,23 +296,23 @@ func (p *prefixTrie) mergeInsert(number rnet.NetworkNumber, network rnet.Network
 	}
 
 	existingChild := p.children[bit]
-	// no child on this direction
+	// No child on this direction.
 	if existingChild == nil {
 		ones, _ := network.IPNet.Mask.Size()
 		if uint(ones) != p.numBitsSkipped+1 {
-			// new network are not adjacent from p, just insert
+			// New networks are not adjacent from p, just insert.
 			leaf := newPathprefixTrie(network, uint(ones))
 			leaf.entry = entry
 			p.appendTrie(bit, leaf)
 			return false, nil
 		}
 
-		// new network are adjacent from p, check p's other child
+		// New networks are adjacent from p, check p's other child.
 		otherBit := ^bit & 1
 		if p.children[otherBit] != nil &&
 			p.children[otherBit].numBitsSkipped == p.numBitsSkipped+1 &&
 			p.children[otherBit].hasEntry() {
-			// reset the child
+			// Reset the child.
 			p.children = p.children[:0]
 			if p.entry == nil {
 				p.entry = NewBasicRangerEntry(p.network.IPNet)
@@ -319,29 +320,29 @@ func (p *prefixTrie) mergeInsert(number rnet.NetworkNumber, network rnet.Network
 			return true, nil
 		}
 
-		// the other child are not meet the requirement for merge
+		// The other child does not meet the requirement for merge.
 		p.appendTrie(bit, newEntryTrie(network, entry))
 		return false, nil
 	}
 
-	// there's child on this direction
-	// Check whether it is necessary to insert additional path prefix between current trie and existing child,
+	// There's a child on this direction.
+	// Check whether it is necessary to insert an additional path prefix between current trie and existing child,
 	// in the case that inserted network diverges on its path to existing child.
 	lcb, err := network.LeastCommonBitPosition(existingChild.network)
 	divergingBitPos := int(lcb) - 1
 	if divergingBitPos > existingChild.targetBitPosition() {
 		pathPrefix := newPathprefixTrie(network, p.totalNumberOfBits()-lcb)
-		err := p.insertPrefix(bit, pathPrefix, existingChild)
-		if err != nil {
+		if err = p.insertPrefix(bit, pathPrefix, existingChild); err != nil {
 			return false, err
 		}
-		// Update new child
+
+		// Update new child.
 		existingChild = pathPrefix
 	}
 
 	merged, err := existingChild.mergeInsert(number, network, entry)
 	if merged {
-		// child merged, check if p need to merge as well
+		// Child merged, check if p needs to merge as well.
 		return p.mergeChildren(), err
 	}
 	return merged, err
@@ -354,7 +355,7 @@ func (p *prefixTrie) mergeChildren() bool {
 		}
 	}
 
-	// this can be merged
+	// This can be merged.
 	p.children = p.children[:0]
 	if p.entry == nil {
 		p.entry = NewBasicRangerEntry(p.network.IPNet)
@@ -395,11 +396,11 @@ func (p *prefixTrie) appendTrie(bit uint32, prefix *prefixTrie) {
 }
 
 func (p *prefixTrie) insertPrefix(bit uint32, pathPrefix, child *prefixTrie) error {
-	// Set parent/child relationship between current trie and inserted pathPrefix
+	// Set the parent/child relationship between current trie and inserted pathPrefix.
 	p.children[bit] = pathPrefix
 	pathPrefix.parent = p
 
-	// Set parent/child relationship between inserted pathPrefix and original child
+	// Set parent/child relationship between the inserted pathPrefix and the original child.
 	pathPrefixBit, err := pathPrefix.targetBitFromIP(child.network.Number)
 	if err != nil {
 		return err
@@ -414,10 +415,10 @@ func (p *prefixTrie) remove(network rnet.Network) (RangerEntry, error) {
 		entry := p.entry
 		p.entry = nil
 
-		err := p.compressPathIfPossible()
-		if err != nil {
+		if err := p.compressPathIfPossible(); err != nil {
 			return nil, err
 		}
+
 		return entry, nil
 	}
 	if p.targetBitPosition() < 0 {
@@ -435,16 +436,16 @@ func (p *prefixTrie) remove(network rnet.Network) (RangerEntry, error) {
 }
 
 func (p *prefixTrie) qualifiesForPathCompression() bool {
-	// Current prefix trie can be path compressed if it meets all following.
-	//		1. records no CIDR entry
-	//		2. has single or no child
-	//		3. is not root trie
+	// The current prefix trie can be path compressed if it meets all the following:
+	//		1. Records no CIDR entry
+	//		2. Has single or no child
+	//		3. Is not root trie
 	return !p.hasEntry() && p.childrenCount() <= 1 && p.parent != nil
 }
 
 func (p *prefixTrie) compressPathIfPossible() error {
 	if !p.qualifiesForPathCompression() {
-		// Does not qualify to be compressed
+		// Does not qualify to be compressed.
 		return nil
 	}
 
@@ -457,7 +458,7 @@ func (p *prefixTrie) compressPathIfPossible() error {
 		}
 	}
 
-	// Find root of currnt single child lineage.
+	// Find root of the current single child lineage.
 	parent := p.parent
 	for ; parent.qualifiesForPathCompression(); parent = parent.parent {
 	}
@@ -467,7 +468,7 @@ func (p *prefixTrie) compressPathIfPossible() error {
 	}
 	parent.children[parentBit] = loneChild
 
-	// Attempts to furthur apply path compression at current lineage parent, in case current lineage
+	// Attempts to further apply path compression at current lineage parent, in case current lineage
 	// compressed into parent.
 	return parent.compressPathIfPossible()
 }
@@ -514,7 +515,7 @@ func (p *prefixTrie) walkDepth() <-chan RangerEntry {
 		if p.hasEntry() {
 			entries <- p.entry
 		}
-		childEntriesList := []<-chan RangerEntry{}
+		var childEntriesList []<-chan RangerEntry
 		for _, trie := range p.children {
 			if trie == nil {
 				continue
